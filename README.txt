@@ -1,4 +1,4 @@
-MY PROMPTS — VERSION 2
+MY PROMPTS — VERSION 3
 
 FILES
 - index.html
@@ -14,7 +14,6 @@ WHAT IT DOES
 - Backup downloads all prompts and answers as a JSON file.
 - Restore imports that JSON backup and replaces the current list.
 - Clear Answers removes answers but leaves prompts intact.
-- Includes a service worker so the installed web app can continue to open offline after it has been loaded successfully.
 
 IMPORTANT
 The live app data is stored separately on each device/browser. Use Backup/Restore if you move to another device or clear browser/site data.
@@ -25,3 +24,9 @@ Upload these files to a web host such as GitHub Pages, then open the resulting H
 VERSION 2 CHANGES
 - Replaced desktop drag-and-drop with iPhone-friendly Up/Down buttons.
 - Tightened edit-mode row spacing for easier scrolling.
+
+VERSION 3 CHANGES
+- Removed the service worker/offline app cache that caused iPhone to keep showing old versions.
+- Future GitHub updates should load normally without deleting the Home Screen icon.
+- Prompts and answers are still stored locally in the browser using localStorage.
+- Backup/Restore remains unchanged.
