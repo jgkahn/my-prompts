@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="My Prompts">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <title>My Prompts</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f5f5f7; --card:#fff; --text:#111; --muted:#6e6e73; --line:#d2d2d7; --accent:#007aff; --danger:#ff3b30; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#000; --card:#1c1c1e; --text:#f5f5f7; --muted:#98989d; --line:#38383a; --accent:#0a84ff; --danger:#ff453a; }
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+    header { position:sticky; top:0; z-index:5; padding:calc(env(safe-area-inset-top) + 10px) 14px 10px; background:color-mix(in srgb,var(--bg) 92%,transparent); backdrop-filter:blur(18px); border-bottom:1px solid var(--line); }
+    .top { display:flex; align-items:center; justify-content:space-between; gap:10px; max-width:760px; margin:auto; }
+    h1 { margin:0; font-size:22px; }
+    button { border:0; border-radius:10px; padding:10px 12px; font-size:16px; background:var(--card); color:var(--accent); }
+    button.primary { background:var(--accent); color:white; font-weight:600; }
+    button.danger { color:var(--danger); }
+    main { max-width:760px; margin:auto; padding:14px 14px calc(28px + env(safe-area-inset-bottom)); }
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .toolbar button { border:1px solid var(--line); }
+    .note { color:var(--muted); font-size:13px; margin:4px 2px 14px; line-height:1.4; }
+    .row { display:grid; grid-template-columns:minmax(120px,auto) 1fr; gap:8px; align-items:center; background:var(--card); border-bottom:1px solid var(--line); padding:10px 12px; }
+    .row:first-child { border-radius:14px 14px 0 0; }
+    .row:last-child { border-radius:0 0 14px 14px; border-bottom:0; }
+    .prompt { font-weight:650; min-width:0; }
+    .answer { width:100%; border:0; outline:0; background:transparent; color:var(--text); font:inherit; padding:8px 4px; min-width:0; }
+    .answer::placeholder { color:var(--muted); }
+    .editRow { grid-template-columns:42px 1fr 42px; }
+    .drag { text-align:center; color:var(--muted); user-select:none; font-size:22px; }
+    .promptEdit { width:100%; font:inherit; font-weight:650; color:var(--text); background:transparent; border:1px solid var(--line); border-radius:8px; padding:8px; }
+    .iconBtn { padding:8px; min-width:38px; background:transparent; }
+    .addBox { margin-top:12px; display:flex; gap:8px; }
+    .addBox input { flex:1; font:inherit; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px; }
+    .hidden { display:none !important; }
+    #fileInput { display:none; }
+    footer { color:var(--muted); text-align:center; font-size:12px; padding-top:20px; }
+    @media (max-width:500px) { .row { grid-template-columns:minmax(105px,42%) 1fr; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>My Prompts</h1>
+    <button id="editBtn" class="primary">Edit</button>
+  </div>
+</header>
+<main>
+  <div class="toolbar">
+    <button id="backupBtn">Backup</button>
+    <button id="restoreBtn">Restore</button>
+    <button id="clearAnswersBtn">Clear Answers</button>
+    <input id="fileInput" type="file" accept=".json,application/json">
+  </div>
+  <div class="note">Your changes save automatically on this device. Backup creates a small file containing your prompts and entries.</div>
+  <section id="list"></section>
+  <div id="addBox" class="addBox hidden">
+    <input id="newPrompt" type="text" placeholder="New prompt, e.g. To cook:">
+    <button id="addBtn" class="primary">Add</button>
+  </div>
+  <footer>Version 1</footer>
+</main>
+<script>
+const STORAGE_KEY = "myPrompts_v1";
+const DEFAULTS = ["To clean:", "To cost:", "To record:", "To plan:", "To pay:", "To read:", "To lift:", "To walk:", "To eat:", "To plan:", "To organize:", "To toss:", "To begin:", "To study:", "To initiate:", "To drink:", "To buy:", "To automate:", "To simplify:", "To contact:", "To remind:", "To pray:", "To manifest:"].map((p,i)=>({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+i), prompt:p, answer:""}));
+let data = load();
+let editMode = false;
+let dragIndex = null;
+
+function load(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch(e){}
+  return structuredClone ? structuredClone(DEFAULTS) : JSON.parse(JSON.stringify(DEFAULTS));
+}
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+function esc(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
+
+function render(){
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  data.forEach((item,index)=>{
+    const row = document.createElement("div");
+    row.className = "row" + (editMode ? " editRow" : "");
+    if (!editMode){
+      row.innerHTML = `<div class="prompt">${esc(item.prompt)}</div>
+        <input class="answer" data-index="${index}" value="${esc(item.answer)}" placeholder="Type here…" autocomplete="off">`;
+    } else {
+      row.draggable = true;
+      row.dataset.index = index;
+      row.innerHTML = `<div class="drag" title="Drag to reorder">≡</div>
+        <input class="promptEdit" data-index="${index}" value="${esc(item.prompt)}">
+        <button class="iconBtn danger deleteBtn" data-index="${index}" aria-label="Delete">✕</button>`;
+      row.addEventListener("dragstart", e=>{ dragIndex=index; e.dataTransfer.effectAllowed="move"; });
+      row.addEventListener("dragover", e=>e.preventDefault());
+      row.addEventListener("drop", e=>{
+        e.preventDefault();
+        const target = Number(row.dataset.index);
+        if (dragIndex===null || dragIndex===target) return;
+        const [moved]=data.splice(dragIndex,1);
+        data.splice(target,0,moved); save(); render();
+      });
+    }
+    list.appendChild(row);
+  });
+
+  document.querySelectorAll(".answer").forEach(el=>el.addEventListener("input",e=>{
+    data[Number(e.target.dataset.index)].answer=e.target.value; save();
+  }));
+  document.querySelectorAll(".promptEdit").forEach(el=>el.addEventListener("input",e=>{
+    data[Number(e.target.dataset.index)].prompt=e.target.value; save();
+  }));
+  document.querySelectorAll(".deleteBtn").forEach(el=>el.addEventListener("click",e=>{
+    const i=Number(e.currentTarget.dataset.index);
+    if(confirm(`Delete "${data[i].prompt}"?`)){ data.splice(i,1); save(); render(); }
+  }));
+}
+
+document.getElementById("editBtn").addEventListener("click", ()=>{
+  editMode=!editMode;
+  document.getElementById("editBtn").textContent=editMode?"Done":"Edit";
+  document.getElementById("addBox").classList.toggle("hidden",!editMode);
+  render();
+});
+document.getElementById("addBtn").addEventListener("click", addPrompt);
+document.getElementById("newPrompt").addEventListener("keydown", e=>{ if(e.key==="Enter") addPrompt(); });
+function addPrompt(){
+  const el=document.getElementById("newPrompt");
+  let p=el.value.trim();
+  if(!p) return;
+  if(!p.endsWith(":")) p += ":";
+  data.push({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), prompt:p, answer:""});
+  el.value=""; save(); render();
+}
+
+document.getElementById("backupBtn").addEventListener("click", ()=>{
+  const payload={app:"My Prompts",version:1,exportedAt:new Date().toISOString(),items:data};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`my-prompts-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+});
+document.getElementById("restoreBtn").addEventListener("click", ()=>document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const obj=JSON.parse(await f.text());
+    const items=Array.isArray(obj)?obj:obj.items;
+    if(!Array.isArray(items)) throw new Error("Invalid backup");
+    const cleaned=items.map((x,i)=>({
+      id:String(x.id || Date.now()+i),
+      prompt:String(x.prompt || "Untitled:"),
+      answer:String(x.answer || "")
+    }));
+    if(confirm(`Restore ${cleaned.length} prompts? This replaces the current list.`)){
+      data=cleaned; save(); render();
+    }
+  }catch(err){ alert("That file does not appear to be a valid My Prompts backup."); }
+  e.target.value="";
+});
+document.getElementById("clearAnswersBtn").addEventListener("click", ()=>{
+  if(confirm("Clear all filled-in answers? Your prompts will remain.")){
+    data.forEach(x=>x.answer=""); save(); render();
+  }
+});
+
+if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{})); }
+render();
+</script>
+</body>
+</html>
