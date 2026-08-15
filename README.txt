@@ -1,4 +1,4 @@
-MY PROMPTS — VERSION 1
+MY PROMPTS — VERSION 2
 
 FILES
 - index.html
@@ -10,7 +10,7 @@ FILES
 WHAT IT DOES
 - Scrollable list of prompts with editable answers.
 - Automatically saves entries on the device using browser local storage.
-- Edit mode lets you rename, add, delete, and drag prompts into a new order.
+- Edit mode lets you rename, add, delete, and move prompts up/down with tap buttons.
 - Backup downloads all prompts and answers as a JSON file.
 - Restore imports that JSON backup and replaces the current list.
 - Clear Answers removes answers but leaves prompts intact.
@@ -21,3 +21,7 @@ The live app data is stored separately on each device/browser. Use Backup/Restor
 
 NEXT STEP
 Upload these files to a web host such as GitHub Pages, then open the resulting HTTPS address in Safari on the iPhone and choose Add to Home Screen.
+
+VERSION 2 CHANGES
+- Replaced desktop drag-and-drop with iPhone-friendly Up/Down buttons.
+- Tightened edit-mode row spacing for easier scrolling.

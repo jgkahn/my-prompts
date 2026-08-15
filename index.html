@@ -33,10 +33,10 @@
     .prompt { font-weight:650; min-width:0; }
     .answer { width:100%; border:0; outline:0; background:transparent; color:var(--text); font:inherit; padding:8px 4px; min-width:0; }
     .answer::placeholder { color:var(--muted); }
-    .editRow { grid-template-columns:42px 1fr 42px; }
-    .drag { text-align:center; color:var(--muted); user-select:none; font-size:22px; }
-    .promptEdit { width:100%; font:inherit; font-weight:650; color:var(--text); background:transparent; border:1px solid var(--line); border-radius:8px; padding:8px; }
-    .iconBtn { padding:8px; min-width:38px; background:transparent; }
+    .editRow { grid-template-columns:1fr auto; gap:8px; padding:7px 10px; }
+    .promptEdit { width:100%; font:inherit; font-weight:650; color:var(--text); background:transparent; border:1px solid var(--line); border-radius:8px; padding:7px 8px; }
+    .editActions { display:flex; gap:4px; align-items:center; }
+    .iconBtn { padding:7px 9px; min-width:36px; background:transparent; border:1px solid var(--line); }
     .addBox { margin-top:12px; display:flex; gap:8px; }
     .addBox input { flex:1; font:inherit; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px; }
     .hidden { display:none !important; }
@@ -65,14 +65,13 @@
     <input id="newPrompt" type="text" placeholder="New prompt, e.g. To cook:">
     <button id="addBtn" class="primary">Add</button>
   </div>
-  <footer>Version 1</footer>
+  <footer>Version 2</footer>
 </main>
 <script>
 const STORAGE_KEY = "myPrompts_v1";
 const DEFAULTS = ["To clean:", "To cost:", "To record:", "To plan:", "To pay:", "To read:", "To lift:", "To walk:", "To eat:", "To plan:", "To organize:", "To toss:", "To begin:", "To study:", "To initiate:", "To drink:", "To buy:", "To automate:", "To simplify:", "To contact:", "To remind:", "To pray:", "To manifest:"].map((p,i)=>({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+i), prompt:p, answer:""}));
 let data = load();
 let editMode = false;
-let dragIndex = null;
 
 function load(){
   try {
@@ -94,20 +93,13 @@ function render(){
       row.innerHTML = `<div class="prompt">${esc(item.prompt)}</div>
         <input class="answer" data-index="${index}" value="${esc(item.answer)}" placeholder="Type here…" autocomplete="off">`;
     } else {
-      row.draggable = true;
       row.dataset.index = index;
-      row.innerHTML = `<div class="drag" title="Drag to reorder">≡</div>
-        <input class="promptEdit" data-index="${index}" value="${esc(item.prompt)}">
-        <button class="iconBtn danger deleteBtn" data-index="${index}" aria-label="Delete">✕</button>`;
-      row.addEventListener("dragstart", e=>{ dragIndex=index; e.dataTransfer.effectAllowed="move"; });
-      row.addEventListener("dragover", e=>e.preventDefault());
-      row.addEventListener("drop", e=>{
-        e.preventDefault();
-        const target = Number(row.dataset.index);
-        if (dragIndex===null || dragIndex===target) return;
-        const [moved]=data.splice(dragIndex,1);
-        data.splice(target,0,moved); save(); render();
-      });
+      row.innerHTML = `<input class="promptEdit" data-index="${index}" value="${esc(item.prompt)}">
+        <div class="editActions">
+          <button class="iconBtn moveUpBtn" data-index="${index}" aria-label="Move up" title="Move up">↑</button>
+          <button class="iconBtn moveDownBtn" data-index="${index}" aria-label="Move down" title="Move down">↓</button>
+          <button class="iconBtn danger deleteBtn" data-index="${index}" aria-label="Delete" title="Delete">✕</button>
+        </div>`;
     }
     list.appendChild(row);
   });
@@ -117,6 +109,18 @@ function render(){
   }));
   document.querySelectorAll(".promptEdit").forEach(el=>el.addEventListener("input",e=>{
     data[Number(e.target.dataset.index)].prompt=e.target.value; save();
+  }));
+  document.querySelectorAll(".moveUpBtn").forEach(el=>el.addEventListener("click",e=>{
+    const i=Number(e.currentTarget.dataset.index);
+    if(i<=0) return;
+    [data[i-1], data[i]] = [data[i], data[i-1]];
+    save(); render();
+  }));
+  document.querySelectorAll(".moveDownBtn").forEach(el=>el.addEventListener("click",e=>{
+    const i=Number(e.currentTarget.dataset.index);
+    if(i>=data.length-1) return;
+    [data[i+1], data[i]] = [data[i], data[i+1]];
+    save(); render();
   }));
   document.querySelectorAll(".deleteBtn").forEach(el=>el.addEventListener("click",e=>{
     const i=Number(e.currentTarget.dataset.index);
