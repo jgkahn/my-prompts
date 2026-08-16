@@ -30,18 +30,20 @@
     .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
     .toolbar button { border:1px solid var(--line); }
     .note { color:var(--muted); font-size:13px; margin:4px 2px 14px; line-height:1.4; }
-    .row { display:grid; grid-template-columns:minmax(120px,auto) 1fr; gap:8px; align-items:center; background:var(--card); border-bottom:1px solid var(--line); padding:10px 12px; }
+    .row { display:grid; grid-template-columns:minmax(120px,auto) 1fr; gap:8px; align-items:start; background:var(--card); border-bottom:1px solid var(--line); padding:10px 12px; }
     .row:first-child { border-radius:14px 14px 0 0; }
     .row:last-child { border-radius:0 0 14px 14px; border-bottom:0; }
     .prompt { font-weight:650; min-width:0; }
-    .answer { width:100%; border:0; outline:0; background:transparent; color:var(--text); font:inherit; padding:8px 4px; min-width:0; }
+    .answer { width:100%; border:0; outline:0; background:transparent; color:var(--text); font:inherit; padding:8px 4px; min-width:0; resize:none; overflow:hidden; line-height:1.35; min-height:38px; }
     .answer::placeholder { color:var(--muted); }
     .editRow { grid-template-columns:1fr auto; gap:8px; padding:7px 10px; }
     .promptEdit { width:100%; font:inherit; font-weight:650; color:var(--text); background:transparent; border:1px solid var(--line); border-radius:8px; padding:7px 8px; }
     .editActions { display:flex; gap:4px; align-items:center; }
     .iconBtn { padding:7px 9px; min-width:36px; background:transparent; border:1px solid var(--line); }
-    .addBox { margin-top:12px; display:flex; gap:8px; }
-    .addBox input { flex:1; font:inherit; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px; }
+    .addBox { margin-top:12px; display:flex; gap:8px; align-items:center; }
+    .addBox input { font:inherit; color:var(--text); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px; }
+    #newPrompt { flex:1; min-width:0; }
+    #newPosition { width:88px; flex:0 0 88px; text-align:center; }
     .hidden { display:none !important; }
     #fileInput { display:none; }
     footer { color:var(--muted); text-align:center; font-size:12px; padding-top:20px; }
@@ -66,9 +68,10 @@
   <section id="list"></section>
   <div id="addBox" class="addBox hidden">
     <input id="newPrompt" type="text" placeholder="New prompt, e.g. To cook:">
+    <input id="newPosition" type="number" inputmode="numeric" min="1" step="1" placeholder="Pos." aria-label="Position">
     <button id="addBtn" class="primary">Add</button>
   </div>
-  <footer>Version 3</footer>
+  <footer>Version 3.2</footer>
 </main>
 <script>
 const STORAGE_KEY = "myPrompts_v1";
@@ -86,6 +89,10 @@ function load(){
 function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 function esc(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
 
+function autoGrow(el){
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
 function render(){
   const list = document.getElementById("list");
   list.innerHTML = "";
@@ -94,7 +101,7 @@ function render(){
     row.className = "row" + (editMode ? " editRow" : "");
     if (!editMode){
       row.innerHTML = `<div class="prompt">${esc(item.prompt)}</div>
-        <input class="answer" data-index="${index}" value="${esc(item.answer)}" placeholder="Type here…" autocomplete="off">`;
+        <textarea class="answer" data-index="${index}" rows="1" placeholder="Type here…" autocomplete="off">${esc(item.answer)}</textarea>`;
     } else {
       row.dataset.index = index;
       row.innerHTML = `<input class="promptEdit" data-index="${index}" value="${esc(item.prompt)}">
@@ -107,9 +114,14 @@ function render(){
     list.appendChild(row);
   });
 
-  document.querySelectorAll(".answer").forEach(el=>el.addEventListener("input",e=>{
-    data[Number(e.target.dataset.index)].answer=e.target.value; save();
-  }));
+  document.querySelectorAll(".answer").forEach(el=>{
+    autoGrow(el);
+    el.addEventListener("input",e=>{
+      data[Number(e.target.dataset.index)].answer=e.target.value;
+      save();
+      autoGrow(e.target);
+    });
+  });
   document.querySelectorAll(".promptEdit").forEach(el=>el.addEventListener("input",e=>{
     data[Number(e.target.dataset.index)].prompt=e.target.value; save();
   }));
@@ -139,13 +151,38 @@ document.getElementById("editBtn").addEventListener("click", ()=>{
 });
 document.getElementById("addBtn").addEventListener("click", addPrompt);
 document.getElementById("newPrompt").addEventListener("keydown", e=>{ if(e.key==="Enter") addPrompt(); });
+document.getElementById("newPosition").addEventListener("input", e=>{
+  let v = e.target.value.replace(/[^0-9]/g,"");
+  if(v.startsWith("0")) v = v.replace(/^0+/, "");
+  e.target.value = v;
+});
+document.getElementById("newPosition").addEventListener("keydown", e=>{
+  if(e.key==="Enter") addPrompt();
+  if(["-","+","e","E",".",","].includes(e.key)) e.preventDefault();
+});
 function addPrompt(){
   const el=document.getElementById("newPrompt");
+  const posEl=document.getElementById("newPosition");
   let p=el.value.trim();
   if(!p) return;
   if(!p.endsWith(":")) p += ":";
-  data.push({id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), prompt:p, answer:""});
-  el.value=""; save(); render();
+
+  let requestedPosition = Number.parseInt(posEl.value, 10);
+  if(!Number.isInteger(requestedPosition) || requestedPosition < 1){
+    requestedPosition = 1;
+  }
+
+  const insertIndex = Math.min(requestedPosition - 1, data.length);
+  data.splice(insertIndex, 0, {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    prompt:p,
+    answer:""
+  });
+
+  el.value="";
+  posEl.value="";
+  save();
+  render();
 }
 
 document.getElementById("backupBtn").addEventListener("click", ()=>{
@@ -180,7 +217,6 @@ document.getElementById("clearAnswersBtn").addEventListener("click", ()=>{
   }
 });
 
-if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{})); }
 render();
 </script>
 </body>

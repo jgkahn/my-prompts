@@ -1,4 +1,4 @@
-MY PROMPTS — VERSION 3
+MY PROMPTS — VERSION 3.2
 
 FILES
 - index.html
@@ -30,3 +30,17 @@ VERSION 3 CHANGES
 - Future GitHub updates should load normally without deleting the Home Screen icon.
 - Prompts and answers are still stored locally in the browser using localStorage.
 - Backup/Restore remains unchanged.
+
+VERSION 3.1 CHANGES
+- Answer fields now wrap automatically onto additional lines.
+- Each answer box grows vertically so the full entry remains visible.
+- Existing locally saved prompts and answers remain compatible.
+- No service worker is used.
+
+VERSION 3.2 CHANGES
+- Edit mode Add now includes a Position field.
+- Position 1 inserts the new prompt first.
+- Position N inserts the prompt as the Nth item.
+- A position beyond the current list length appends the prompt to the end.
+- Position accepts positive whole numbers only.
+- Leaving Position blank inserts the new prompt first.
